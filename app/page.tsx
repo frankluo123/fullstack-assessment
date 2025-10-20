@@ -28,7 +28,7 @@ interface Product {
   title: string;
   categoryName: string;
   subCategoryName: string;
-  imageUrls: string[];
+  imageUrls?: string[];
 }
 
 export default function Home() {
@@ -36,25 +36,23 @@ export default function Home() {
   const [categories, setCategories] = useState<string[]>([]);
   const [subCategories, setSubCategories] = useState<string[]>([]);
   const [search, setSearch] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState<string | undefined>(
-    undefined
-  );
-  const [selectedSubCategory, setSelectedSubCategory] = useState<
-    string | undefined
-  >(undefined);
+  const [selectedCategory, setSelectedCategory] = useState<string | undefined>(undefined);
+  const [selectedSubCategory, setSelectedSubCategory] = useState<string | undefined>(undefined);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     fetch("/api/categories")
       .then((res) => res.json())
-      .then((data) => setCategories(data.categories));
+      .then((data) => setCategories(data.categories))
+      .catch((err) => console.error("Failed to load categories:", err));
   }, []);
 
   useEffect(() => {
     if (selectedCategory) {
-      fetch(`/api/subcategories`)
+      fetch(`/api/subcategories?category=${encodeURIComponent(selectedCategory)}`)
         .then((res) => res.json())
-        .then((data) => setSubCategories(data.subCategories));
+        .then((data) => setSubCategories(data.subCategories))
+        .catch((err) => console.error("Failed to load subcategories:", err));
     } else {
       setSubCategories([]);
       setSelectedSubCategory(undefined);
@@ -64,39 +62,58 @@ export default function Home() {
   useEffect(() => {
     setLoading(true);
     const params = new URLSearchParams();
-    if (search) params.append("search", search);
-    if (selectedCategory) params.append("category", selectedCategory);
-    if (selectedSubCategory) params.append("subCategory", selectedSubCategory);
-    params.append("limit", "20");
+
+    if (search) {
+      params.append("search", search);
+      params.append("limit", "1000");
+    } else {
+      if (selectedCategory) params.append("category", selectedCategory);
+      if (selectedSubCategory) params.append("subCategory", selectedSubCategory);
+      params.append("limit", "20");
+    }
 
     fetch(`/api/products?${params}`)
       .then((res) => res.json())
       .then((data) => {
         setProducts(data.products);
         setLoading(false);
+      })
+      .catch((err) => {
+        console.error("Failed to load products:", err);
+        setLoading(false);
       });
   }, [search, selectedCategory, selectedSubCategory]);
 
   return (
     <div className="min-h-screen bg-background">
+      {/* Header Section */}
       <header className="border-b">
         <div className="container mx-auto px-4 py-6">
           <h1 className="text-4xl font-bold mb-6">StackShop</h1>
 
           <div className="flex flex-col md:flex-row gap-4 mb-4">
+            {/* Search Input */}
             <div className="relative flex-1">
               <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
               <Input
                 placeholder="Search products..."
                 value={search}
-                onChange={(e) => setSearch(e.target.value)}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  setSearch(value);
+                  if (value) {
+                    setSelectedCategory(undefined);
+                    setSelectedSubCategory(undefined);
+                  }
+                }}
                 className="pl-10"
               />
             </div>
 
+            {/* Category Select */}
             <Select
               value={selectedCategory}
-              onValueChange={(value) => setSelectedCategory(value || undefined)}
+              onValueChange={(value: string) => setSelectedCategory(value || undefined)}
             >
               <SelectTrigger className="w-full md:w-[200px]">
                 <SelectValue placeholder="All Categories" />
@@ -110,12 +127,11 @@ export default function Home() {
               </SelectContent>
             </Select>
 
+            {/* Subcategory Select */}
             {selectedCategory && subCategories.length > 0 && (
               <Select
                 value={selectedSubCategory}
-                onValueChange={(value) =>
-                  setSelectedSubCategory(value || undefined)
-                }
+                onValueChange={(value: string) => setSelectedSubCategory(value || undefined)}
               >
                 <SelectTrigger className="w-full md:w-[200px]">
                   <SelectValue placeholder="All Subcategories" />
@@ -130,6 +146,7 @@ export default function Home() {
               </Select>
             )}
 
+            {/* Clear Filters */}
             {(search || selectedCategory || selectedSubCategory) && (
               <Button
                 variant="outline"
@@ -146,7 +163,23 @@ export default function Home() {
         </div>
       </header>
 
+      {/* Main Product Grid */}
       <main className="container mx-auto px-4 py-8">
+        {/* Back to Home Page Button */}
+        {(selectedCategory || selectedSubCategory) && (
+          <div className="mb-4">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setSelectedCategory(undefined);
+                setSelectedSubCategory(undefined);
+              }}
+            >
+              ← Back to Home Page
+            </Button>
+          </div>
+        )}
+
         {loading ? (
           <div className="text-center py-12">
             <p className="text-muted-foreground">Loading products...</p>
@@ -172,30 +205,36 @@ export default function Home() {
                   <Card className="h-full hover:shadow-lg transition-shadow cursor-pointer">
                     <CardHeader className="p-0">
                       <div className="relative h-48 w-full overflow-hidden rounded-t-lg bg-muted">
-                        {product.imageUrls[0] && (
+                        {product?.imageUrls?.[0] ? (
                           <Image
                             src={product.imageUrls[0]}
-                            alt={product.title}
+                            alt={product.title || "Product image"}
                             fill
                             className="object-contain p-4"
                             sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                           />
+                        ) : (
+                          <div className="flex h-full w-full items-center justify-center text-sm text-muted-foreground">
+                            No image available
+                          </div>
                         )}
                       </div>
                     </CardHeader>
+
                     <CardContent className="pt-4">
                       <CardTitle className="text-base line-clamp-2 mb-2">
                         {product.title}
                       </CardTitle>
                       <CardDescription className="flex gap-2 flex-wrap">
                         <Badge variant="secondary">
-                          {product.categoryName}
+                          {product.categoryName || "Uncategorized"}
                         </Badge>
-                        <Badge variant="outline">
-                          {product.subCategoryName}
-                        </Badge>
+                        {product.subCategoryName && (
+                          <Badge variant="outline">{product.subCategoryName}</Badge>
+                        )}
                       </CardDescription>
                     </CardContent>
+
                     <CardFooter>
                       <Button variant="outline" className="w-full">
                         View Details

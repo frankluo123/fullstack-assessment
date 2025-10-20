@@ -14,9 +14,9 @@ interface Product {
   title: string;
   categoryName: string;
   subCategoryName: string;
-  imageUrls: string[];
-  featureBullets: string[];
-  retailerSku: string;
+  imageUrls?: string[];
+  featureBullets?: string[];
+  retailerSku?: string;
 }
 
 export default function ProductPage() {
@@ -54,6 +54,11 @@ export default function ProductPage() {
     );
   }
 
+  const validImage =
+    product?.imageUrls && product.imageUrls.length > 0 && product.imageUrls[selectedImage]
+      ? product.imageUrls[selectedImage]
+      : null;
+
   return (
     <div className="min-h-screen bg-background">
       <div className="container mx-auto px-4 py-8">
@@ -65,25 +70,30 @@ export default function ProductPage() {
         </Link>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          {/* Image Section */}
           <div className="space-y-4">
             <Card className="overflow-hidden">
               <CardContent className="p-0">
-                <div className="relative h-96 w-full bg-muted">
-                  {product.imageUrls[selectedImage] && (
+                <div className="relative h-96 w-full bg-muted flex items-center justify-center">
+                  {validImage ? (
                     <Image
-                      src={product.imageUrls[selectedImage]}
-                      alt={product.title}
+                      src={validImage}
+                      alt={product.title || 'Product image'}
                       fill
                       className="object-contain p-8"
                       sizes="(max-width: 1024px) 100vw, 50vw"
                       priority
                     />
+                  ) : (
+                    <div className="text-muted-foreground text-sm">
+                      No image available
+                    </div>
                   )}
                 </div>
               </CardContent>
             </Card>
 
-            {product.imageUrls.length > 1 && (
+            {product?.imageUrls && product.imageUrls.length > 1 && (
               <div className="grid grid-cols-4 gap-2">
                 {product.imageUrls.map((url, idx) => (
                   <button
@@ -95,7 +105,7 @@ export default function ProductPage() {
                   >
                     <Image
                       src={url}
-                      alt={`${product.title} - Image ${idx + 1}`}
+                      alt={`${product.title || 'Product'} - Image ${idx + 1}`}
                       fill
                       className="object-contain p-2"
                       sizes="100px"
@@ -106,17 +116,26 @@ export default function ProductPage() {
             )}
           </div>
 
+          {/* Product Info Section */}
           <div className="space-y-6">
             <div>
               <div className="flex gap-2 mb-2">
-                <Badge variant="secondary">{product.categoryName}</Badge>
-                <Badge variant="outline">{product.subCategoryName}</Badge>
+                {product.categoryName && (
+                  <Badge variant="secondary">{product.categoryName}</Badge>
+                )}
+                {product.subCategoryName && (
+                  <Badge variant="outline">{product.subCategoryName}</Badge>
+                )}
               </div>
               <h1 className="text-3xl font-bold mb-2">{product.title}</h1>
-              <p className="text-sm text-muted-foreground">SKU: {product.retailerSku}</p>
+              {product.retailerSku && (
+                <p className="text-sm text-muted-foreground">
+                  SKU: {product.retailerSku}
+                </p>
+              )}
             </div>
 
-            {product.featureBullets.length > 0 && (
+            {product?.featureBullets && product.featureBullets.length > 0 && (
               <Card>
                 <CardContent className="pt-6">
                   <h2 className="text-lg font-semibold mb-3">Features</h2>
